@@ -23,7 +23,7 @@ struct hpg_pwm_devfs_dev {
 	struct hpg_usb_dev     *my_dev;
 	struct cdev		cdev;
 	uint8_t			endpoint_addr;
-	int16_t			current_pwm;
+	int32_t			current_pwm;
 	bool			did_read;
 	struct list_head	list;
 	struct kref		kref;
@@ -337,7 +337,7 @@ static int hpg_pwm_open(struct inode *inode, struct file *file)
 static ssize_t hpg_pwm_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 {
 	struct hpg_pwm_devfs_dev *pwm_dev;
-	char buf[7];
+	char buf[10];
 	
 	pwm_dev = (struct hpg_pwm_devfs_dev*) file->private_data;
 	if (pwm_dev == NULL)
@@ -353,7 +353,7 @@ static ssize_t hpg_pwm_read(struct file *file, char __user *buffer, size_t count
 		hpg_send_data(pwm_dev, "0", 1);
 	}
 
-	snprintf(buf, 7, "%hd\n", (int16_t) pwm_dev->current_pwm);
+	snprintf(buf, 10, "%d\n", (int32_t) pwm_dev->current_pwm);
 	if (copy_to_user(buffer, buf, strlen(buf))) {
 		return -EFAULT;
 	} else {
@@ -365,7 +365,7 @@ static ssize_t hpg_pwm_read(struct file *file, char __user *buffer, size_t count
 static ssize_t hpg_pwm_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos)
 {
 	struct hpg_pwm_devfs_dev *pwm_dev;
-	char to_write[7];
+	char to_write[9];
 	char to_write_size;
 	bool buffer_good;
 
@@ -373,7 +373,7 @@ static ssize_t hpg_pwm_write(struct file *file, const char __user *buffer, size_
 
 	buffer_good = true;
 	to_write_size = count;
-	if (count > 7) {
+	if (count > 9) {
 		buffer_good = false;
 	} else {
 		if (copy_from_user(to_write, buffer, count))
@@ -396,16 +396,19 @@ static ssize_t hpg_pwm_write(struct file *file, const char __user *buffer, size_
 		}
 	}
 
+	if (to_write_size > 8)
+		buffer_good = false;
+
 	pwm_dev = (struct hpg_pwm_devfs_dev*) file->private_data;
 	if (pwm_dev == NULL)
 		return -ENODEV;
 
 	if (buffer_good) {
-		sscanf(to_write, "%hd",
-		       (int16_t*) &pwm_dev->current_pwm);
+		sscanf(to_write, "%d",
+		       (int32_t*) &pwm_dev->current_pwm);
 	} else {
-		snprintf(to_write, 7, "%hd",
-			 (int16_t) pwm_dev->current_pwm);
+		snprintf(to_write, 9, "%d",
+			 (int32_t) pwm_dev->current_pwm);
 		to_write_size = strlen(to_write);
 	}
 
